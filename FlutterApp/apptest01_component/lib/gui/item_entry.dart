@@ -5,162 +5,29 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import 'package:apptest01_component/classes/DateTimeCustom.dart';
-
-import '../classes/BaseItem.dart';
-
-// This demo is based on
-// https://material.google.com/components/dialogs.html#dialogs-full-screen-dialogs
-
-enum DismissDialogAction {
-  cancel,
-  discard,
-  save,
-}
-
-class DateTimeItem extends StatefulWidget {
-  DateTimeItem({Key key, String displayText, bool defaultOverride, DateTimeCustom dateTime, @required this.onChanged})
-    : assert(onChanged != null),
-      date = new DateTimeCustom(year: dateTime.year, month: dateTime.month, day: dateTime.day, hour: dateTime.hour, minute:dateTime.minute, specialCheck: (defaultOverride!=null) ? defaultOverride : dateTime.specialCheck),
-      time = new TimeOfDay(hour: dateTime.hour, minute: dateTime.minute),
-      inputDisplayText = displayText;
-
-  final DateTimeCustom date;
-  final TimeOfDay time;
-  final ValueChanged<DateTimeCustom> onChanged;
-  final String inputDisplayText;
-
-  @override
-  DateTimeItemState createState() => new DateTimeItemState();
-}
-
-class DateTimeItemState extends State<DateTimeItem> {
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-
-    return new DefaultTextStyle(
-      style: theme.textTheme.subhead,
-      child: new Container(
-        height: 42.0,
-        child: new Row(
-          mainAxisAlignment: (!widget.date.specialCheck) ? MainAxisAlignment.spaceEvenly : MainAxisAlignment.start,
-          children: <Widget>[
-            (!widget.date.specialCheck) ? new Container(
-              child: new Container(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                decoration: new BoxDecoration(
-                  border: new Border(
-                    bottom: new BorderSide(
-                      color: theme.dividerColor,
-                    ),
-                  ),
-                ),
-                child: new InkWell(
-                  onTap: () {
-                    setState(() {
-                      showDatePicker(
-                        context: context,
-                        initialDate: widget.date,
-                        firstDate: widget.date.subtract(const Duration(days: 30)),
-                        lastDate: widget.date.add(const Duration(days: 30))
-                      ).then<Null>((DateTime value) {
-                          if (value != null)
-                            widget.onChanged(new DateTimeCustom(year: value.year, month: value.month, day: value.day, hour: widget.time.hour, minute: widget.time.minute));
-                      });
-                    });
-                  },
-                  child: new Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      new Text(
-                          new DateFormat('EEE, MMM d yyyy').format(widget.date)),
-                      const Icon(
-                        Icons.arrow_drop_down,
-                        color: Colors.black54,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ) : new Container(width: 0.0),
-            (!widget.date.specialCheck) ? new Container(
-              child: new Container(
-                margin: const EdgeInsets.only(left: 8.0),
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                width: 95.0,
-                decoration: new BoxDecoration(
-                  border: new Border(
-                    bottom: new BorderSide(
-                      color: theme.dividerColor,
-                    ),
-                  ),
-                ),
-                child: new InkWell(
-                  onTap: () {
-                    showTimePicker(
-                      context: context,
-                      initialTime: widget.time
-                    ).then<Null>((TimeOfDay value) {
-                        setState(() {
-                          if (value != null)
-                            widget.onChanged(new DateTimeCustom(year: widget.date.year, month: widget.date.month, day: widget.date.day, hour: value.hour, minute: value.minute));
-                        });
-                    });
-                  },
-                  child: new Row(
-                    children: <Widget>[
-                      new Text('${widget.time.format(context)}'),
-                      const Icon(
-                        Icons.arrow_drop_down,
-                        color: Colors.black54,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ) : new Container(),
-            new Container(
-              margin: (widget.date.specialCheck) ? const EdgeInsets.only(left: 8.0): null,
-              child: new Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: <Widget>[
-                  (!widget.date.specialCheck) ? new Text("Toggle") : new Text('${widget.inputDisplayText}'),
-                  new Checkbox(
-                    value: widget.date.specialCheck,
-                      onChanged: (bool value) {
-                        setState(() {
-                          if (value != null) {
-                            // NPM Note: This is not working, it looks like there needs to be some future call to get the setState to work correctly w/ the onChanged.
-                            widget.date.specialCheck = value;
-                          }
-                        });
-  //                      widget.onChanged(new DateTimeCustom(year: widget.date.year, month: widget.date.month, day: widget.date.day, hour: widget.time.hour, minute: widget.time.minute, specialCheck: value));
-                      },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+import 'package:apptest01_component/classes/BaseItem.dart';
+import 'package:apptest01_component/gui/date_time_entry.dart';
 
 class ItemEntry extends StatefulWidget {
-  ItemEntry([BaseItemType itemTypeInput]) : itemType = itemTypeInput;
+  ItemEntry([BaseItemType itemTypeInput])
+      : itemType = itemTypeInput,
+        inputItem = BaseItem.of(itemType: itemTypeInput);
+
+  ItemEntry.of([BaseItem inputItem])
+      : itemType = inputItem.itemType,
+        inputItem = inputItem;
 
   final BaseItemType itemType;
+  final BaseItem inputItem;
 
   @override
-  ItemEntryState createState() => new ItemEntryState(itemType);
+  ItemEntryState createState() => new ItemEntryState(itemType, inputItem);
 }
 
 class ItemEntryState extends State<ItemEntry> {
-  ItemEntryState([BaseItemType itemType]){
+  ItemEntryState([BaseItemType itemType, BaseItem inputItem]) {
     this.itemType = itemType;
 
     switch (this.itemType) {
@@ -175,25 +42,47 @@ class ItemEntryState extends State<ItemEntry> {
         break;
     }
 
+    if (inputItem != null) {
+      _installDateTime = inputItem.installDateTime;
+      _removalDateTime = inputItem.removalDateTime;
+      _itemName = inputItem.itemName;
+      _itemComment = inputItem.itemComment;
+
+      _hasName = false; //(_itemName != null) && (_itemName.length > 0);
+//      _hasComment = (_itemComment != null) && (_itemComment.length > 0);
+      _saveNeeded = false;
+    }
   }
 
   DateTimeCustom _installDateTime = DateTimeCustom.now();
   DateTimeCustom _removalDateTime = DateTimeCustom.now();
-  String _itemName;
-  String _itemLocation; // NPM Note: to be changed to component/equipment list
-  String _itemComment;
+  String _itemName = '';
+  String _itemLocation =
+      ''; // NPM Note: to be changed to component/equipment list
+  String _itemComment = '';
 
   BaseItemType itemType;
   String typeName;
 
-  bool _saveNeeded  = false;
-  bool _hasName     = false;
+  bool _saveNeeded = false;
+  bool _hasName = false;
   bool _hasLocation = false;
-  bool _hasComment  = false;
+  bool _hasComment = false;
+
+  TextEditingController _textController;
+
+  @override
+  void initState() {
+    super.initState();
+    _textController = new TextEditingController(text: '$_itemName');
+  }
 
   Future<bool> _onWillPop() async {
     _saveNeeded = _hasLocation || _hasName || _saveNeeded;
-    if (!_saveNeeded) return true;
+    if (!_saveNeeded) {
+      debugPrint("No modifications noted, quitting...");
+      return true;
+    }
 
     final ThemeData theme = Theme.of(context);
     final TextStyle dialogTextStyle =
@@ -209,19 +98,22 @@ class ItemEntryState extends State<ItemEntry> {
                 new FlatButton(
                     child: const Text('CANCEL'),
                     onPressed: () {
+                      debugPrint("Cancel discard item");
                       Navigator.of(context).pop(
                           false); // Pops the confirmation dialog but not the page.
                     }),
                 new FlatButton(
                     child: const Text('DISCARD'),
                     onPressed: () {
+                      debugPrint("Discard item");
                       Navigator.of(context).pop(
                           true); // Returning true to _onWillPop will pop again.
                     })
               ],
             );
           },
-        ) ?? false;
+        ) ??
+        false;
   }
 
   @override
@@ -230,13 +122,18 @@ class ItemEntryState extends State<ItemEntry> {
 
     return new Scaffold(
       appBar: new AppBar(
-          title: new Text(_hasName ? _itemName : '${typeName[0].toUpperCase()}${typeName.substring(1)} TBD'),
+          title: new Text((_itemName != null) && (_itemName.length > 0)
+              ? _itemName
+              : '${typeName[0].toUpperCase()}${typeName.substring(1)} TBD'),
           actions: <Widget>[
             new FlatButton(
-                child: new Text('SAVE',
-                    style: theme.textTheme.body1.copyWith(color: Colors.white)),
+                child: const Icon(
+                  Icons.check,
+                  color: Colors.white,
+                ),
                 onPressed: () {
-                  Navigator.pop(context, DismissDialogAction.save);
+                  debugPrint("Trying to exit w/ save");
+                  Navigator.of(context).pop(convertToItem(this));
                 })
           ]),
       body: new Form(
@@ -245,27 +142,30 @@ class ItemEntryState extends State<ItemEntry> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               children: <Widget>[
                 new Container(
-                  padding: const EdgeInsets.only(top: 12.0),
+                    padding: const EdgeInsets.only(top: 12.0),
 //                    padding: const EdgeInsets.symmetric(vertical: 8.0),
                     alignment: Alignment.bottomLeft,
                     child: new TextField(
-                        decoration: InputDecoration(
-                            labelText: '${typeName[0].toUpperCase()}${typeName.substring(1)} name', filled: true),
-                        style: theme.textTheme.headline,
-                        onChanged: (String value) {
-                          setState(() {
-                            _hasName = value.isNotEmpty;
-                            if (_hasName) {
-                              _itemName = value;
-                            }
-                          });
-                        },
+                      controller: _textController,
+                      decoration: InputDecoration(
+                          labelText:
+                              '${typeName[0].toUpperCase()}${typeName.substring(1)} name',
+                          filled: true),
+                      style: theme.textTheme.headline,
+                      onChanged: (String value) {
+                        setState(() {
+                          _hasName = value.isNotEmpty;
+                          if (_hasName) {
+                            _itemName = value;
+                          }
+                        });
+                      },
                     )),
                 new Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       new Text('Install Date:', style: theme.textTheme.subhead),
-                      new DateTimeItem(
+                      new DateTimeEntry(
                           displayText: 'Since Beginning',
                           dateTime: _installDateTime,
                           onChanged: (DateTimeCustom value) {
@@ -279,7 +179,7 @@ class ItemEntryState extends State<ItemEntry> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       new Text('Removal Date:', style: theme.textTheme.subhead),
-                      new DateTimeItem(
+                      new DateTimeEntry(
                           displayText: 'Still Using!',
                           dateTime: _removalDateTime,
                           defaultOverride: true,
@@ -330,4 +230,24 @@ class ItemEntryState extends State<ItemEntry> {
               }).toList())),
     );
   }
+}
+
+BaseItem convertToItem(ItemEntryState itemEntry) {
+  BaseItem outputItem;
+  // Pull out input item and modify (instead of creating new object)
+  if (itemEntry.widget.inputItem != null) {
+    outputItem = itemEntry.widget.inputItem;
+  } else {
+    // Determine which type of item to make
+    outputItem = BaseItem.of(itemType: itemEntry.itemType);
+  }
+
+  // Update item
+  outputItem.installDateTime = itemEntry._installDateTime;
+  outputItem.removalDateTime = itemEntry._removalDateTime;
+  outputItem.itemName = itemEntry._itemName;
+  outputItem.itemComment = itemEntry._itemComment;
+
+  // Return
+  return outputItem;
 }
